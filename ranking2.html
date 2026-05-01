@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>スマホランキング</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f2f2f7;
+    margin: 0;
+    padding: 20px;
+}
+
+/* カード */
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* 入力 */
+input {
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+/* ボタン共通 */
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    color: white;
+    cursor: pointer; /* ←重要 */
+    font-weight: bold;
+}
+
+/* グラフ切替ボタン専用 */
+button:not(.add):not(.delete):not(.edit):not(.reset) {
+    background: #007aff;
+}
+
+/* ホバーで押せる感 */
+button:hover {
+    opacity: 0.85;
+}
+/* 色分け */
+.add { background: #34c759; }
+.delete { background: #ff3b30; }
+.edit { background: #007aff; }
+.reset { background: #8e8e93; }
+
+h2, h3 {
+    margin: 10px 0;
+}
+
+canvas {
+    width: 100% !important;
+    height: 280px !important;
+}
+</style>
+
+</head>
+<body>
+
+<div class="card">
+    <h2>入力</h2>
+
+    <input type="text" id="name" placeholder="名前">
+    <input type="number" id="amount" placeholder="金額">
+    <button class="add" onclick="addData()">追加</button>
+</div>
+
+<div class="card">
+    <input type="text" id="deleteName" placeholder="削除する名前">
+    <button class="delete" onclick="deleteOne()">1人削除</button>
+
+    <input type="text" id="editName" placeholder="編集する名前">
+    <input type="number" id="editAmount" placeholder="新しい金額">
+    <button class="edit" onclick="editData()">編集</button>
+
+    <button class="reset" onclick="resetData()">全部リセット</button>
+</div>
+
+<div class="card">
+    <h3>ランキング</h3>
+    <pre id="output"></pre>
+</div>
+
+<div class="card">
+    <h3>グラフ</h3>
+
+<button onclick="toggleChart()">グラフ切替</button>
+
+    <canvas id="myChart"></canvas>
+</div>
+
+<script>
+let result = JSON.parse(localStorage.getItem("rankingData")) || {};
+let myChart;
+let chartType = "bar";
+
+function addData() {
+    const name = document.getElementById("name").value.trim();
+    const amount = Number(document.getElementById("amount").value);
+
+    if (!name || isNaN(amount)) return;
+
+    if (!result[name]) result[name] = 0;
+
+    result[name] += amount;
+
+    save();
+    showRanking();
+
+    document.getElementById("name").value = "";
+    document.getElementById("amount").value = "";
+}
+
+function deleteOne() {
+    const name = document.getElementById("deleteName").value.trim();
+
+    if (!result[name]) return alert("存在しません");
+
+    delete result[name];
+
+    save();
+    showRanking();
+
+    document.getElementById("deleteName").value = "";
+}
+
+function editData() {
+    const name = document.getElementById("editName").value.trim();
+    const amount = Number(document.getElementById("editAmount").value);
+
+    if (!result[name]) return alert("存在しません");
+
+    result[name] = amount;
+
+    save();
+    showRanking();
+}
+
+function resetData() {
+    if (!confirm("全部削除しますか？")) return;
+
+    result = {};
+    save();
+    showRanking();
+
+    if (myChart) myChart.destroy();
+}
+
+function toggleChart() {
+    chartType = (chartType === "bar") ? "pie" : "bar";
+    showRanking();
+}
+
+function save() {
+    localStorage.setItem("rankingData", JSON.stringify(result));
+}
+
+function showRanking() {
+    let ranking = Object.entries(result)
+        .sort((a,b)=>b[1]-a[1]);
+
+    let output = "";
+
+    ranking.forEach((item,i)=>{
+        output += `${i+1}位：${item[0]} ${item[1]}円\n`;
+    });
+
+    let total = ranking.reduce((sum,i)=>sum+i[1],0);
+    output += "\n合計：" + total + "円";
+
+    document.getElementById("output").textContent = output;
+
+    drawChart(ranking);
+}
+
+function drawChart(ranking) {
+    const labels = ranking.map(i => i[0]);
+    const data = ranking.map(i => i[1]);
+
+    const ctx = document.getElementById("myChart");
+
+    if (myChart) myChart.destroy();
+
+    myChart = new Chart(ctx, {
+    type: chartType,
+    data: {
+        labels,
+        datasets: [{
+            label: "金額",
+            data,
+            backgroundColor: labels.map((_, i) => {
+                const colors = [
+                    "#ff3b30",
+                    "#34c759",
+                    "#007aff",
+                    "#ffcc00",
+                    "#af52de",
+                    "#ff9500"
+                ];
+                return colors[i % colors.length];
+            })
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+}
+
+showRanking();
+</script>
+
+</body>
+</html>
